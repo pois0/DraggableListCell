@@ -32,6 +32,7 @@ open class DraggableListCell<T>(lv: ListView<T>, val dataFormat: DataFormat) : L
 
 
     protected fun onDragDetected(e: MouseEvent) {
+        if (item == null) return
         var dragBoard = startDragAndDrop(TransferMode.MOVE)
         var content = ClipboardContent()
         content.put(dataFormat, item)
@@ -39,6 +40,7 @@ open class DraggableListCell<T>(lv: ListView<T>, val dataFormat: DataFormat) : L
     }
 
     protected fun onDragOver(e: DragEvent) {
+        if (item == null) return
         if (e.dragboard.hasContent(dataFormat)) {
             e.acceptTransferModes(TransferMode.MOVE)
             changeOrder(e)
