@@ -9,14 +9,10 @@ import javafx.scene.input.*
 /**
  * @author poispois
  */
-open class DraggableListCell<T>(lv: ListView<T>, val dataFormat: DataFormat) : ListCell<T>() {
-    var items: ObservableList<T> = lv.items
-    var orientation: Orientation = lv.orientation
-
-    var overHandler: (Double, Double, Int) -> Boolean = { cursorPos, cellLength, direction ->
-        val center = cellLength / 2
-        (direction < 0 && cursorPos < center) || (direction > 0 && cursorPos > center)
-    }
+@Suppress("MemberVisibilityCanPrivate")
+open class DraggableListCell<T>(lv: ListView<T>, protected val dataFormat: DataFormat) : ListCell<T>() {
+    protected var items: ObservableList<T> = lv.items
+    protected var orientation: Orientation = lv.orientation
 
     init {
         updateListView(lv)
@@ -31,15 +27,15 @@ open class DraggableListCell<T>(lv: ListView<T>, val dataFormat: DataFormat) : L
     }
 
 
-    protected fun onDragDetected(e: MouseEvent) {
+    protected open fun onDragDetected(e: MouseEvent) {
         if (item == null) return
-        var dragBoard = startDragAndDrop(TransferMode.MOVE)
-        var content = ClipboardContent()
+        val dragBoard = startDragAndDrop(TransferMode.MOVE)
+        val content = ClipboardContent()
         content.put(dataFormat, item)
         dragBoard.setContent(content)
     }
 
-    protected fun onDragOver(e: DragEvent) {
+    protected open fun onDragOver(e: DragEvent) {
         if (item == null) return
         if (e.dragboard.hasContent(dataFormat)) {
             e.acceptTransferModes(TransferMode.MOVE)
@@ -53,13 +49,24 @@ open class DraggableListCell<T>(lv: ListView<T>, val dataFormat: DataFormat) : L
             val source = dragBoard.getContent(dataFormat) as T
             val sourceIndex = items.indexOf(source)
             val targetIndex = items.indexOf(item)
-            val (cursorPos, cellLength) = if (orientation == Orientation.VERTICAL) Pair(e.y, height) else Pair(e.x, width)
-            if(overHandler(cursorPos, cellLength, targetIndex - sourceIndex)) {
+            val cursorPos = if (orientation == Orientation.VERTICAL) e.y else e.x
+            if(overHandler(cursorPos, targetIndex - sourceIndex)) {
                 items.remove(source)
                 items.add(targetIndex, source)
                 return true
-            }
-        }
+            }   }
         return false
+    }
+
+    /**
+     * カーソルがListCellのどこに達したときに順序を交換するかを定めます。overrideされることを念頭に置いています。
+     * @param cursorPos カーソルの位置が与えられます。OrientationがHORIZONTALの場合はx座標を,VERTICALの場合はy座標が与えられます。
+     * @param direction ListCellが向かう方向が与えられます。ListCellがindexの若い方に向かうときは負,大きな方向に向かうときは正の値が与えられます。絶対値はターゲットとソースの差でしょうが,保証されません。
+     * @return 順序がかる場合はtrueを返す必要があります。
+     */
+    protected open fun overHandler(cursorPos: Double, direction: Int): Boolean {
+        val cellLength = if (orientation == Orientation.VERTICAL) height else width
+        val center = cellLength / 2
+        return (direction < 0 && cursorPos < center) || (direction > 0 && cursorPos > center)
     }
 }
