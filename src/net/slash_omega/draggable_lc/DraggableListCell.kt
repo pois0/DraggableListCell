@@ -1,10 +1,17 @@
 package net.slash_omega.draggable_lc
 
+import javafx.animation.Animation
+import javafx.animation.KeyFrame
+import javafx.animation.Timeline
 import javafx.collections.ObservableList
+import javafx.event.ActionEvent
+import javafx.event.EventHandler
 import javafx.geometry.Orientation
 import javafx.scene.control.ListCell
 import javafx.scene.control.ListView
 import javafx.scene.input.*
+import javafx.util.Duration
+import java.awt.MouseInfo
 
 /**
  * @author poispois
@@ -13,6 +20,14 @@ import javafx.scene.input.*
 open class DraggableListCell<T>(lv: ListView<T>, protected val dataFormat: DataFormat) : ListCell<T>() {
     protected var items: ObservableList<T> = lv.items
     protected var orientation: Orientation = lv.orientation
+    protected var isVertical = orientation == Orientation.VERTICAL
+    protected var timerDuration: Double = 10.0
+    protected val timer: Timeline = with(Timeline(KeyFrame(Duration.millis(timerDuration), EventHandler {
+        timerHandle(it)
+    }))) {
+        cycleCount = Animation.INDEFINITE
+        this
+    }
 
     init {
         updateListView(lv)
@@ -24,8 +39,11 @@ open class DraggableListCell<T>(lv: ListView<T>, protected val dataFormat: DataF
             onDragOver(it)
             it.consume()
         }
+        setOnDragDone {
+            onDragDone(it)
+            it.consume()
+        }
     }
-
 
     protected open fun onDragDetected(e: MouseEvent) {
         if (item == null) return
@@ -33,6 +51,7 @@ open class DraggableListCell<T>(lv: ListView<T>, protected val dataFormat: DataF
         val content = ClipboardContent()
         content.put(dataFormat, item)
         dragBoard.setContent(content)
+        timer.play()
     }
 
     protected open fun onDragOver(e: DragEvent) {
@@ -43,6 +62,10 @@ open class DraggableListCell<T>(lv: ListView<T>, protected val dataFormat: DataF
         }
     }
 
+    protected open fun onDragDone(e: DragEvent) {
+        timer.stop()
+    }
+
     protected fun changeOrder(e: DragEvent): Boolean {
         val dragBoard = e.dragboard
         if (dragBoard.hasContent(dataFormat)) {
@@ -50,11 +73,12 @@ open class DraggableListCell<T>(lv: ListView<T>, protected val dataFormat: DataF
             val sourceIndex = items.indexOf(source)
             val targetIndex = items.indexOf(item)
             val cursorPos = if (orientation == Orientation.VERTICAL) e.y else e.x
-            if(overHandler(cursorPos, targetIndex - sourceIndex)) {
+            if (overHandler(cursorPos, targetIndex - sourceIndex)) {
                 items.remove(source)
                 items.add(targetIndex, source)
                 return true
-            }   }
+            }
+        }
         return false
     }
 
@@ -68,5 +92,27 @@ open class DraggableListCell<T>(lv: ListView<T>, protected val dataFormat: DataF
         val cellLength = if (orientation == Orientation.VERTICAL) height else width
         val center = cellLength / 2
         return (direction < 0 && cursorPos < center) || (direction > 0 && cursorPos > center)
+    }
+
+    protected open fun timerHandle(e: ActionEvent) {
+        val cursorPos = {
+            val it = Utils.awtPointToFXPoint2D(MouseInfo.getPointerInfo().location)
+            if (isVertical) it.y else it.x
+        }
+        val thisNodeMinPos = {
+            val it = Utils.getNodeMinPosition(this)
+            if(isVertical) it.y else it.x
+        }
+        val listViewSize = if (isVertical) listView.height else listView.width
+        scroll(cursorPos(), thisNodeMinPos(), listViewSize)
+    }
+
+    protected open fun scroll(cursorPos: Double, nodeMinPos: Double, listViewSize: Double){
+        val scrollBar = Utils.getScrollBar(listView)
+        if (cursorPos < nodeMinPos) {
+            scrollBar.decrement()
+        } else if(cursorPos > nodeMinPos + listViewSize) {
+            scrollBar.increment()
+        }
     }
 }
