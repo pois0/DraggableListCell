@@ -18,10 +18,12 @@ import java.awt.MouseInfo
  */
 @Suppress("MemberVisibilityCanPrivate")
 open class DraggableListCell<T>(lv: ListView<T>, protected val dataFormat: DataFormat) : ListCell<T>() {
-    protected var items: ObservableList<T> = lv.items
-    protected var orientation: Orientation = lv.orientation
-    protected var isVertical = orientation == Orientation.VERTICAL
+    protected val items: ObservableList<T> = lv.items
+    protected val orientation: Orientation = lv.orientation
+    protected val isVertical = orientation == Orientation.VERTICAL
+    var isFixed = false
     protected var timerDuration: Double = 10.0
+        set
     protected val timer: Timeline = with(Timeline(KeyFrame(Duration.millis(timerDuration), EventHandler {
         timerHandle(it)
     }))) {
@@ -46,7 +48,7 @@ open class DraggableListCell<T>(lv: ListView<T>, protected val dataFormat: DataF
     }
 
     protected open fun onDragDetected(e: MouseEvent) {
-        if (item == null) return
+        if (item == null && isFixed) return
         val dragBoard = startDragAndDrop(TransferMode.MOVE)
         val content = ClipboardContent()
         content.put(dataFormat, item)
